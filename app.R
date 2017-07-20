@@ -1,98 +1,53 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-
 library(shiny)
-library(RMySQL)
+library(googleVis)
+library(ggplot2)
+library(plotly)
 library(DBI)
-
-# Define UI for application that draws a histogram
+library(RMySQL)
 ui <- fluidPage(
-   
-   # Application title
-   titlePanel("Beer Club Data"),
-   
-   # Sidebar with a slider input for number of bins 
-   sidebarLayout(
-      sidebarPanel(
-        selectInput("uID", "User ID:",c("None" = "***","Hannes (HNS)" = "HNS","Ueli (UG)" = "UG","Arturo (ART)" = "ART","AFIF (AFF)" = "AFF","Oender (OK)" = "OK","Vimal (VIR)" = "VIR","Alex (ALX)" = "ALX","Dima (DIM)" = "DIM", "Nuno (NP)" = "NP"), selected=NULL),
-        br(),
-        dateInput("date", "Date:", value = NULL, min = NULL, max = NULL, startview = "month", weekstart = 0,language = "en", width = NULL),
-        selectInput("beers", "Beers:", c("Zero" = "", "1" = 1,"2" = 2,"3" = 3, "10" = 10), selected=NULL),
-        actionButton("enterdata", "Record")),
-      # Show a plot of the generated distribution
-      mainPanel(
-        h4(textOutput("text1")), h5(tableOutput("tbl")), h5(tableOutput("tbl1"))
-      )
-   )
+  titlePanel("This is dummy data for Beer club, Please Don't get offended !!"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("dataset", "Choose a Club:", choices = c("Beer Club", "Coffee Club")),
+      numericInput("obs", "Number of observations to view:", 10),
+      actionButton("showU","Show Data"), h4("Last 10 entries!!"), tableOutput("view2")),
+    mainPanel( mainPanel(tableOutput("view")), plotOutput("plot"))
+  )
 )
 
-
-# Define server logic required to draw a histogram
-
-#con <- dbConnect(MySQL(), dbname="beerclub", username="root", password="abc123", host="localhost", port=13306)
-
+server <- function(input, output,session){
+  con <- dbConnect(RMySQL::MySQL(), dbname = "test", user='root', password = "abc123", host='localhost', port=3306)
+  on.exit(dbDisconnect(con), add = TRUE)
+  beerclub <- dbReadTable(con,  "beerclub")
+  total <- dbGetQuery(con,"select UserID, sum(beers) as total_beers, sum(cost) as Cost, sum(cost)/sum(beers) as cost_per_beer  from beerclub GROUP  BY  UserID ;")
+  rank<-dbGetQuery(con,"select UserID, MONTH(date) as Month, sum(beers) as glasses, sum(cost) as Cost, sum(cost)/sum(beers) as cost_per_beer  from beerclub  GROUP  BY  UserID, MONTH(date) ;")
+  update<-dbGetQuery(con,"UPDATE beerclub SET cost = CASE WHEN beers < 2 THEN 0 WHEN beers >1 AND beers < 4 THEN 5 WHEN beers >3 THEN 10 END;")
   
-
-############
-server <- function(input, output, session) {
-
-goButton1 <- eventReactive(input$enterdata,{
-  output$tbl <- renderTable({
-    conn <- dbConnect(
-      drv = RMySQL::MySQL(),
-      dbname = "test",
-      host = "localhost",
-      username = "root",
-      password = "abc123")
-    on.exit(dbDisconnect(conn), add = TRUE)
-    dbGetQuery(conn, paste0("SELECT * FROM test.beerclub WHERE date >= CURDATE();"))
-  })
-})
+  # Return the requested dataset
   
   
-   goButton2 <- eventReactive(input$enterdata,{
+  output$view <- renderTable({
+    #head(dbReadTable(con = con,  name = input$dataset), n = input$obs)
+    total
     
-        conn1 <- dbConnect(
-        drv = RMySQL::MySQL(),
-        dbname = "test",
-        host = "localhost",
-        username = "root",
-        password = "abc123")
-        on.exit(dbDisconnect(conn1), add = TRUE)
-        dbGetQuery(conn1, paste0("insert into test.beerclub ( UserID, date, beers) values ('",input$uID,"', '",input$date,"',",input$beers, ") ;"))
-        
   })
   
-output$text1 <- renderText({ 
-            #paste0("Please varify", input$uID,", Today :", input$date, "You drank:", input$beers, " beer(s)")
-            goButton1()
-            goButton2()
-            })
-
-
-
+  output$view2 <- renderTable({
+    
+    last10 <- tail(beerclub)
+    last10=last10[order(nrow(last10):1),]
+    head(last10)
+    
+  })
+  
+  output$plot <- renderPlot({
+    ggplot(rank , aes(x = rank$Month, y = rank$glasses, colour = UserID)) + geom_line(size=2) + xlab("Month in year 2017")+ ylab("Beer glasses") + ylim(low=0,high=200) + ggtitle("Beer glasses per month ") +  theme(plot.title = element_text(lineheight=1, face="bold"), axis.text=element_text(size=24), axis.title=element_text(size=18,face="bold"))
+    #ggplotly(p)
+    
+  })
+  
+  
+  
 }
-############
 
-#server <- function(input, output,session) {
-#    
-#    d <- eventReactive(input$enterdata, { input$uID })          
-#    observeEvent(input$button, {
-#                                  paste("insert into beerclub.beerclub (UserID, data, beers) values (",input$uID,",",input$date,",",input$beers)
-#                                  result<-reactive({dbSendQuery(con, sql())})
-#                                  output$text1 <- renderText({ 
-#                                                              paste("Please varify", input$uID,", Today :", input$date, "You drank:", input$beers, " beer(s)")
-#                                                            })
-#                           })
-#           
-#}
-
-# Run the application 
-shinyApp(ui = ui, server = server)
-
+shinyApp(ui,server)
