@@ -51,8 +51,8 @@ server <- function(input, output, session) {
       drv = RMySQL::MySQL(),
       dbname = "test",
       host = "localhost",
-      username = "root",
-      password = "abc123")
+      username = "",
+      password = "")
       on.exit(dbDisconnect(conn1), add = TRUE)
       return (dbGetQuery(conn1, paste0("SELECT  DISTINCT DisplayName  FROM test.beerclub_members ORDER BY DisplayName ASC;")))
 
@@ -78,8 +78,8 @@ goButton1 <- eventReactive(input$enterdata,{
       drv = RMySQL::MySQL(),
       dbname = "test",
       host = "localhost",
-      username = "root",
-      password = "abc123")
+      username = "",
+      password = "")
     on.exit(dbDisconnect(conn), add = TRUE)
     dbGetQuery(conn, paste0("SELECT * FROM test.beerclub WHERE date >= CURDATE()  ORDER BY ID DESC LIMIT 10;"))
   })
@@ -92,8 +92,8 @@ goButton1 <- eventReactive(input$enterdata,{
         drv = RMySQL::MySQL(),
         dbname = "test",
         host = "localhost",
-        username = "root",
-        password = "abc123")
+        username = "",
+        password = "")
         on.exit(dbDisconnect(conn1), add = TRUE)
         dbGetQuery(conn1, paste0("insert into test.beerclub ( UserID, date, beers) values ('",input$uID,"', '",input$date,"',",input$beers, ") ;"))
 
